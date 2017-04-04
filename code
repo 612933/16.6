@@ -1,0 +1,139 @@
+DRIVER
+
+
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class drv {
+
+	
+	public static void main(String[] args) throws Exception {
+		if (args.length != 3) {
+		     System.err.println("Usage: Reduce Join <input path1> <input path2> <output path>");
+		     System.exit(-1);
+		   }
+		
+		//Job Related Configurations
+		Configuration conf = new Configuration();
+		Job job = new Job(conf, "Reduce-side join");
+		job.setJarByClass(drv.class);
+		
+		//Since there are multiple input, there is a slightly difference way of specifying input path, input format and mapper
+		MultipleInputs.addInputPath(job, new Path(args[0]),TextInputFormat.class,mpr1.class);
+		MultipleInputs.addInputPath(job, new Path(args[1]),TextInputFormat.class, mpr2.class);
+		
+		//Set the reducer
+		job.setReducerClass(rdcr.class);
+		
+		//Set the output key and value class
+		job.setOutputKeyClass(NullWritable.class);
+		job.setOutputValueClass(Text.class);
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(Text.class);
+	
+		//set the out path
+		Path outputPath = new Path(args[2]);
+		FileOutputFormat.setOutputPath(job, outputPath);
+		outputPath.getFileSystem(conf).delete(outputPath, true);
+		
+		//execute the job
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
+	}
+}
+
+
+
+MAPPER1
+
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class mpr1 extends Mapper<LongWritable,Text,Text,Text>
+{
+	Text ok= new Text();
+	Text ov= new Text();
+public void map(LongWritable key,Text value,Context context)throws IOException, InterruptedException
+{
+	String[] s = value.toString().split("\t");
+  ok.set(s[0]);
+  ov.set(value);
+  context.write(ok, ov);
+}
+}
+
+
+
+
+
+MAPPER2
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class mpr2 extends Mapper<LongWritable,Text,Text,Text>
+{
+	Text ok= new Text();
+	Text ov= new Text();
+public void map(LongWritable key,Text value,Context context)throws IOException, InterruptedException
+{
+	String[] s = value.toString().split("\t");
+	
+  ok.set(s[0]);
+  ov.set(value);
+  context.write(ok, ov);
+	
+}
+}
+
+
+
+
+
+REDUCER
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+
+public class rdcr extends
+			Reducer<Text, Text, NullWritable, Text> {
+	NullWritable ok;
+	Text ov=new Text();
+	int sum=0;
+		public void reduce(Text key, Iterable<Text> values, Context context)
+				throws IOException, InterruptedException {
+			sum=0;
+			StringBuilder x = new StringBuilder();
+			
+			for(Text t:values)
+			{   
+				x.append(t);
+				x.append(" ");
+			}
+			ov.set(x.toString());
+			context.write(ok,ov);
+			
+		}
+	}
+
+
+
